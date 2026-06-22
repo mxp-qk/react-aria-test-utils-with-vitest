@@ -1,6 +1,5 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
-
 import { User } from "@react-aria/test-utils";
 import {
   Button,
@@ -19,7 +18,7 @@ import {
 let testUtilUser = new User({ interactionType: "mouse" });
 
 test("Test select", async () => {
-  const { getByTestId } = render(
+  const screen = await render(
     <Select data-testid="test-select">
       <Label>Favorite Animal</Label>
       <Button>
@@ -36,22 +35,23 @@ test("Test select", async () => {
           <ListBoxItem>Snake</ListBoxItem>
         </ListBox>
       </Popover>
-    </Select>
+    </Select>,
   );
 
   let selectTester = testUtilUser.createTester("Select", {
-    root: getByTestId("test-select").element() as HTMLElement,
+    root: screen.getByTestId("test-select").element() as HTMLElement,
     interactionType: "keyboard",
+    advanceTimer: (time) => vi.advanceTimersByTime(time),
   });
-  let trigger = selectTester.trigger;
+  let trigger = selectTester.getTrigger();
   expect(trigger).toHaveTextContent("Select an item");
 
-  await selectTester.selectOption({ option: "Cat" });
+  await selectTester.toggleOptionSelection({ option: "Cat" });
   expect(trigger).toHaveTextContent("Cat");
 });
 
 test("Test menu", async () => {
-  const { getByTestId } = render(
+  const screen = await render(
     <MenuTrigger>
       <Button aria-label="Menu" data-testid="test-menutrigger">
         ☰
@@ -79,28 +79,27 @@ test("Test menu", async () => {
           </SubmenuTrigger>
         </Menu>
       </Popover>
-    </MenuTrigger>
+    </MenuTrigger>,
   );
-
   let menuTester = testUtilUser.createTester("Menu", {
-    root: getByTestId("test-menutrigger").element() as HTMLElement,
+    root: screen.getByTestId("test-menutrigger").element() as HTMLElement,
     interactionType: "keyboard",
+    advanceTimer: (time) => vi.advanceTimersByTime(time),
   });
 
   await menuTester.open();
-  expect(menuTester.menu).toBeInTheDocument();
-  let submenuTriggers = menuTester.submenuTriggers;
+  expect(menuTester.getMenu()).toBeInTheDocument();
+  let submenuTriggers = menuTester.getSubmenuTriggers();
   expect(submenuTriggers).toHaveLength(1);
 
   let submenuTester = await menuTester.openSubmenu({
-    submenuTrigger: "Share…",
+    submenuTrigger: "More...",
   });
+  expect(submenuTester.getMenu()).toBeInTheDocument();
 
-  if (!submenuTester) throw new Error("Submenu not found");
-
-  expect(submenuTester.menu).toBeInTheDocument();
-
-  await submenuTester.selectOption({ option: submenuTester.options()[0] });
-  expect(submenuTester.menu).not.toBeInTheDocument();
-  expect(menuTester.menu).not.toBeInTheDocument();
+  await submenuTester.toggleOptionSelection({
+    option: submenuTester.getOptions()[0],
+  });
+  expect(submenuTester.getMenu()).not.toBeInTheDocument();
+  expect(menuTester.getMenu()).not.toBeInTheDocument();
 });
